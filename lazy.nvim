@@ -1,0 +1,96 @@
+-- Lazy.nvim configuration for your plugins
+require('lazy').setup({
+
+  -- Lazy.nvim can manage itself
+  {
+    'folke/lazy.nvim',
+    version = "*",
+  },
+
+  -- Telescope for fuzzy finding
+  {
+    'nvim-telescope/telescope.nvim',
+    version = '0.1.6',
+    dependencies = { 'nvim-lua/plenary.nvim' },
+    cmd = 'Telescope', -- Lazy load on command
+  },
+
+  -- Kanagawa colorscheme
+  {
+    'rebelot/kanagawa.nvim',
+    config = function()
+      vim.cmd('colorscheme kanagawa')
+    end
+  },
+
+  -- 42header plugin
+  {
+    '0ur4n05/42header.nvim',
+    version = 'v2.*',
+    config = function()
+      require("toggleterm").setup()  -- Assuming you meant to use toggleterm here
+    end
+  },
+
+  -- Treesitter for syntax highlighting
+  {
+    'nvim-treesitter/nvim-treesitter',
+    build = ':TSUpdate', -- Runs the update command after installing
+  },
+
+  -- Treesitter Playground (useful for debugging Treesitter queries)
+  {
+    'nvim-treesitter/playground',
+    cmd = 'TSPlaygroundToggle', -- Lazy load on command
+  },
+
+  -- Harpoon for quick navigation between files
+  {
+    'theprimeagen/harpoon',
+    dependencies = { 'nvim-lua/plenary.nvim' }, -- Harpoon uses plenary
+    event = "VeryLazy" -- Load after initialization for better performance
+  },
+
+  -- Undotree for visualizing undo history
+  {
+    'mbbill/undotree',
+    cmd = 'UndotreeToggle', -- Lazy load on command
+  },
+
+  -- Vim-fugitive for Git integration
+  {
+    'tpope/vim-fugitive',
+    cmd = { 'Git', 'Gdiffsplit', 'Gread', 'Gwrite', 'Ggrep', 'Gmove', 'Gdelete', 'Gedit' }, -- Lazy load on specific Git commands
+  },
+
+  -- LSP Configuration with LSP Zero (v3.x branch)
+  {
+    'VonHeikemen/lsp-zero.nvim',
+    branch = 'v3.x',
+    dependencies = {
+      -- LSP Support
+      {'neovim/nvim-lspconfig'}, -- Core LSP
+      {'williamboman/mason.nvim'}, -- Package manager for LSP servers
+      {'williamboman/mason-lspconfig.nvim'}, -- Mason integration with lspconfig
+
+      -- Autocompletion
+      {'hrsh7th/nvim-cmp'}, -- Main completion engine
+      {'hrsh7th/cmp-buffer'}, -- Buffer completions
+      {'hrsh7th/cmp-path'}, -- Path completions
+      {'hrsh7th/cmp-nvim-lsp'}, -- LSP completions
+      {'hrsh7th/cmp-nvim-lua'}, -- Lua completions (for Neovim config)
+      {'saadparwaiz1/cmp_luasnip'}, -- Snippet completions
+
+      -- Snippets
+      {'L3MON4D3/LuaSnip'}, -- Snippet engine
+      {'rafamadriz/friendly-snippets'}, -- Collection of snippets
+    },
+    config = function()
+      -- Add your LSP zero setup here
+      local lsp = require('lsp-zero')
+      lsp.preset('recommended')
+      lsp.setup()
+    end
+  },
+  
+})
