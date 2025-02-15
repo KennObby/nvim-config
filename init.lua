@@ -1,6 +1,5 @@
 require("b_water.init")
-require('b_water.remap')
-
+require("b_water.remap")
 		-- BASIC EDITOR SETTINGS --
 
 
@@ -21,7 +20,6 @@ vim.o.clipboard = 'unnamedplus' --Use system clipboard for copy/paste
 
 
 		-- TABS AND INDENTATION --
-
 		
 -- Set tab width to 4 spaces
 vim.o.tabstop = 4
@@ -81,30 +79,13 @@ vim.o.timeoutlen = 500
 
 		-- FILETYPE-SPECIFIC SETTINGS --
 
--- Clang-specific settings (42)
 vim.cmd([[
     autocmd Filetype c setlocal cindent tabstop=4 shiftwidth=4 noexpandtab
     autocmd Filetype cpp setlocal cindent tabstop=4 shiftwidth=4 noexpandtab
-  ]])
-
--- Example:
-vim.cmd([[
     autocmd FileType rs setlocal tabstop=4 shiftwidth=4 noexpandtab
-    ]])
-
--- Example: Python-specific settings
-vim.cmd([[
     autocmd FileType python setlocal tabstop=4 shiftwidth=4 expandtab
-]])
-
--- Example: JavaScript/TypeScript-specific settings
-vim.cmd([[
     autocmd FileType javascript,typescript setlocal tabstop=2 shiftwidth=2 expandtab
-]])
-
--- Example : .sh, .json, .yaml files to sync with nvim-treesitter
-vim.cmd ([[
-    autocmd BufRead,BufNewFile *.conf set filetype=ini
+    autocmd BufRead,BufNewFile *.conf set filetype=conf
     autocmd BufRead,BufNewFile *.json set filetype=json
     autocmd BufRead,BufNewFile *.yaml set filetype=yaml
 ]])
@@ -123,6 +104,10 @@ require('lazy').setup({
 
     version = "*",
 
+  },
+
+  {
+      'nanotee/zoxide.vim'
   },
 
   -- Telescope for fuzzy finding
@@ -445,8 +430,21 @@ require('lazy').setup({
       end
   },
 
+  --Mason-tool pour gerer les linters et formatteurs
+  {
+    'WhoIsSethDaniel/mason-tool-installer.nvim',
+    requires = {'williamboman/mason.nvim'}
+  },
 
+  -- nvim.lint
+  {
+      'mfussenegger/nvim-lint'
+  },
 
+  --Formatteur
+  {
+      'mhartington/formatter.nvim'
+  },
 
   -- LSP Configuration with LSP Zero (v3.x branch)
 
@@ -487,7 +485,7 @@ require('lazy').setup({
 
       {'rafamadriz/friendly-snippets'}, -- Collection of snippets
 
-    },
+  },
 
     config = function()
 
@@ -497,51 +495,23 @@ require('lazy').setup({
 
       lsp.preset('recommended')
 
+      require('mason').setup()
+      require('mason-lspconfig').setup({
+      	ensure_installed = {'ltex'},
+	})
+      lsp.configure('ltex', {
+          settings = {
+              ltex ={
+                  language = "en",
+                  diagnosticSeverity = "information",
+                  sentenceCacheSize = 2000,
+                  completionEnabled = true,
+                  checkFrequency = "save"
+              }
+          }
+      })
+
       lsp.setup()
     end
     },
 })
-
-	-- AUTOCOMPLETION CONFIG --
-
--- Initialize vim-plug
-
-vim.cmd [[
-  call plug#begin('~/.vim/plugged')
-
-  "Syntax HIghlighting for Python
-  Plug 'vim-python/python-syntax'         
-  
-  "Linting and error checking
-  Plug 'dense-analysis/ale'                
-
-  "Python match enhancements
-  Plug 'vim-scripts/python_match.vim'     
-  
-  "Python code formatter  
-  Plug 'psf/black'                         
-  
-  Plug 'preservim/nerdtree'                " File explorer
-
-  call plug#end()
-]]
-
--- ALE: Asynchronous Lint Engine
-vim.g.ale_linters = {
-  python = {'flake8', 'pylint'},           -- Linters for Python
-}
-
--- Autoformat with Black
-vim.g.ale_fixers = {
-  python = {'black'},                      -- Formatter for Python
-}
-
--- Enable automatic fixing on save
-vim.g.ale_fix_on_save = 1
-
--- Use <Tab> and <S-Tab> to navigate through popup menu
-vim.cmd [[
-  inoremap <expr> <TAB>   pumvisible() ? "\<C-n>" : "\<Tab>"
-  inoremap <expr> <S-TAB> pumvisible() ? "\<C-p>" : "\<S-Tab>"
-]]
-

@@ -9,8 +9,9 @@ require('mason-lspconfig').setup({
         'ansiblels', 'arduino_language_server','ast_grep', 'bashls',
         'cmake', 'clangd', 'cssls', 'docker_compose_language_service', 'golangci_lint_ls',
         'html', 'jdtls', 'eslint', 'jsonls', 'kotlin_language_server',
-        'lua_ls', 'matlab_ls', 'pyright', 'phpactor', 'powershell_es',
-        'rust_analyzer', 'sqls','ts_ls', 'terraformls', 'vuels', 'zls'
+        'ols', 'lua_ls', 'matlab_ls', 'pyright', 'phpactor',
+        'powershell_es', 'rust_analyzer', 'sqls','ts_ls', 'terraformls',
+        'vuels', 'zls'
     },
 
     handlers = {
@@ -132,6 +133,14 @@ cmp.setup.cmdline(':', {
 
 -- Setup lspconfig (integrating Mason and nvim-cmp)
 local capabilities = require('cmp_nvim_lsp').default_capabilities() -- Call on cmp_nvim_lsp default capabilities on LSPs
+require('lspconfig')['ols'].setup {
+    capabilities = capabilities,
+    on_attach = function(client, bufnr)-- handle key mappings or client-specific actions (Reference to the vim.lsp.handlers function below, line 37)
+    end,
+    handlers = {
+        ["textDocument/publishDiagnostics"] = custom_publish_diagnostics
+    }
+}
 require('lspconfig')['bashls'].setup {
     capabilities = capabilities,
     on_attach = function(client, bufnr)-- handle key mappings or client-specific actions (Reference to the vim.lsp.handlers function below, line 37)

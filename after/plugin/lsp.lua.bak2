@@ -1,0 +1,303 @@
+﻿local lsp = require("lsp-zero")
+
+lsp.preset("recommended")
+
+-- Setup Mason et Mason-LSPConfig
+require("mason").setup({})
+require("mason-lspconfig").setup({
+	ensure_installed = {
+		"ansiblels",
+		"arduino_language_server",
+		"bashls",
+		"cmake",
+		"clangd",
+		"cssls",
+		"docker_compose_language_service",
+		"golangci_lint_ls",
+		"html",
+		"jdtls",
+		"eslint",
+		"jsonls",
+		"kotlin_language_server",
+		"matlab_ls",
+		"pyright",
+		"phpactor",
+		"powershell_es",
+		"rust_analyzer",
+		"sqls",
+		"terraformls",
+		"vuels",
+		"zls",
+	},
+})
+
+require("mason-tool-installer").setup({
+	ensure_installed = {
+		"prettier", -- Formatter pour JavaScript/TypeScript
+		"shfmt", -- Formatter pour Bash
+		"shellcheck", -- Linter pour Bash
+		"stylua", -- Formatter pour Lua
+		"golangci-lint", -- Linter pour Go
+	},
+	auto_update = true, -- Met à jour les outils automatiquement
+	run_on_start = true, -- Installe les outils au démarrage si non présents
+})
+
+local lspconfig = require("lspconfig")
+local capabilities = require("cmp_nvim_lsp").default_capabilities()
+
+-- Ltex stup for handling comments
+lspconfig.ltex.setup({
+	filetypes = { "markdown", "text", "tex" }, -- Limite LTeX aux types de fichiers textuels
+	settings = {
+		ltex = {
+			language = "en", -- Définit la langue si besoin
+			disabledRules = { ["en"] = { "MORFOLOGIK_RULE_EN_US" } }, -- Optionnel : désactive certaines règles
+		},
+	},
+})
+
+-- Custom handler pour filtrer les diagnostics
+local custom_publish_diagnostics = vim.lsp.with(vim.lsp.diagnostic.on_publish_diagnostics, {
+	virtual_text = false,
+	signs = true,
+	update_in_insert = false,
+})
+
+-- Configure automatiquement tous les serveurs listés dans Mason
+require("mason-lspconfig").setup_handlers({
+	function(server_name)
+		lspconfig[server_name].setup({
+			capabilities = capabilities,
+			on_attach = function(client, bufnr)
+				-- Mappings et autres actions spécifiques peuvent être ajoutés ici
+			end,
+			handlers = {
+				["textDocument/publishDiagnostics"] = custom_publish_diagnostics,
+			},
+		})
+	end,
+})
+
+-- Configure rust-analyzer
+lspconfig.rust_analyzer.setup({
+	settings = {
+		["rust-analyzer"] = {
+			cargo = { allFeatures = true },
+			checkOnSave = {
+				command = "clippy", -- Optionnel : pour utiliser `clippy` lors de la sauvegarde
+			},
+		},
+	},
+	on_attach = function(client, bufnr)
+		-- Ici, tu peux ajouter des mappings ou autres configurations pour `rust-analyzer`
+		local opts = { buffer = bufnr }
+		vim.keymap.set("n", "K", vim.lsp.buf.hover, opts) -- Documentation flottante
+		vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts) -- Aller à la définition
+		vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, opts) -- Actions de code
+		vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, opts) -- Renommage de symboles
+	end,
+})
+
+-- Fonction pour déterminer si une ligne contient un commentaire ou une chaîne
+local function is_comment_or_string(line)
+	return line:match("^%s*//")
+		or line:match("^%s*#")
+		or line:match("^%s*--")
+		or line:match("^%s*/%*")
+		or line:match("^%s*%*")
+		or line:match("%b''")
+		or line:match('%b""')
+end
+
+-- Fonction pour filtrer les diagnostics dans les lignes commentées ou les chaînes
+local function filter_diagnostics_in_comments(diagnostic)
+	if diagnostic.lnum == nil then
+		return false
+	end
+
+	local bufnr = diagnostic.bufnr
+	local line = vim.api.nvim_buf_get_lines(bufnr, diagnostic.lnum, diagnostic.lnum + 1, false)[1]
+
+	return not is_comment_or_string(line)
+end
+
+-- Configuration de nvim-lint
+local lint = require("lint")
+lint.linters_by_ft = {
+	javascript = { "eslint" },
+	typescript = { "eslint" },
+	go = { "golangci-lint" },
+	sh = { "shellcheck" },
+}
+
+-- Fonction de diagnostic avec filtrage
+local function custom_publish_diagnostics()
+	vim.api.nvim_create_autocmd("User", {
+		pattern = "LintReport",
+		callback = function()
+			local diagnostics = vim.diagnostic.get(0)
+			local filtered_diagnostics = vim.tbl_filter(filter_diagnostics_in_comments, diagnostics)
+			vim.diagnostic.set(vim.api.nvim_create_namespace("filtered_lint"), 0, filtered_diagnostics, {})
+		end,
+	})
+end
+
+-- Lancer le linter et appliquer le filtrage des diagnostics à l'enregistrement
+vim.api.nvim_create_autocmd({ "BufWritePost" }, {
+	callback = function()
+		lint.try_lint()
+		custom_publish_diagnostics()
+	end,
+})
+
+-- Configuration de formatter.nvim pour le formatage
+local formatter = require("formatter")
+formatter.setup({
+	filetype = {
+		javascript = {
+			function()
+				return {
+					exe = "prettier",
+					args = { "--stdin-filepath", vim.api.nvim_buf_get_name(0) },
+					stdin = true,
+				}
+			end,
+		},
+		lua = {
+			function()
+				return {
+					exe = "stylua",
+					args = { "--search-parent-directories", "-" },
+					stdin = true,
+				}
+			end,
+		},
+		sh = {
+			function()
+				return {
+					exe = "shfmt",
+					args = { "-i", "4" },
+					stdin = true,
+				}
+			end,
+		},
+	},
+})
+
+-- Formatage automatique lors de l'enregistrement du fichier
+vim.api.nvim_create_autocmd("BufWritePost", {
+	pattern = "*",
+	callback = function()
+		vim.cmd("FormatWrite")
+	end,
+})
+
+-- Configuration de la complétion avec nvim-cmp et Luasnip
+local cmp = require("cmp")
+local luasnip = require("luasnip")
+
+cmp.setup({
+	snippet = {
+		expand = function(args)
+			require("luasnip").lsp_expand(args.body)
+		end,
+	},
+	mapping = {
+		["<C-b>"] = cmp.mapping.scroll_docs(-4),
+		["<C-f>"] = cmp.mapping.scroll_docs(4),
+		["<C-Space>"] = cmp.mapping.complete(),
+		["<C-e>"] = cmp.mapping.abort(),
+		["<CR>"] = cmp.mapping.confirm({ select = true }),
+
+		["<Tab>"] = cmp.mapping(function(fallback)
+			if cmp.visible() then
+				cmp.select_next_item()
+			elseif luasnip.expand_or_jumpable() then
+				luasnip.expand_or_jump()
+			else
+				fallback()
+			end
+		end, { "i", "s" }),
+
+		["<S-Tab>"] = cmp.mapping(function(fallback)
+			if cmp.visible() then
+				cmp.select_prev_item()
+			elseif luasnip.jumpable(-1) then
+				luasnip.jump(-1)
+			else
+				fallback()
+			end
+		end, { "i", "s" }),
+	},
+	sources = cmp.config.sources({
+		{ name = "nvim_lsp" },
+		{ name = "luasnip" },
+	}, {
+		{ name = "path" },
+	}),
+
+	-- Désactiver la complétion automatique dans les commentaires
+	enabled = function()
+		-- Vérifie si le curseur est dans une zone de commentaire
+		local line = vim.api.nvim_get_current_line()
+		local col = vim.fn.col(".") - 1
+		local is_comment = line:sub(1, col):find("//") or line:sub(1, col):find("#") -- ou d'autres motifs
+
+		return not is_comment
+	end,
+})
+
+-- Configuration de la complétion dans la ligne de commande
+cmp.setup.cmdline("/", {
+	sources = {
+		{ name = "buffer" },
+	},
+})
+
+cmp.setup.cmdline(":", {
+	sources = cmp.config.sources({
+		{ name = "path" },
+	}, {
+		{ name = "cmdline" },
+	}),
+})
+
+-- Configuration générale des mappings pour LSP
+lsp.on_attach(function(client, bufnr)
+	local opts = { buffer = bufnr, remap = false }
+
+	vim.keymap.set("n", "gd", function()
+		vim.lsp.buf.definition()
+	end, opts)
+	vim.keymap.set("n", "K", function()
+		vim.lsp.buf.hover()
+	end, opts)
+	vim.keymap.set("n", "<leader>vws", function()
+		vim.lsp.buf.workspace_symbol()
+	end, opts)
+	vim.keymap.set("n", "<leader>vd", function()
+		vim.diagnostic.open_float()
+	end, opts)
+	vim.keymap.set("n", "[d", function()
+		vim.diagnostic.goto_next()
+	end, opts)
+	vim.keymap.set("n", "]d", function()
+		vim.diagnostic.goto_prev()
+	end, opts)
+	vim.keymap.set("n", "<leader>vca", function()
+		vim.lsp.buf.code_action()
+	end, opts)
+	vim.keymap.set("n", "<leader>vrr", function()
+		vim.lsp.buf.references()
+	end, opts)
+	vim.keymap.set("n", "<leader>vrn", function()
+		vim.lsp.buf.rename()
+	end, opts)
+	vim.keymap.set("i", "<C-h>", function()
+		vim.lsp.buf.signature_help()
+	end, opts)
+end)
+
+-- Finalise la configuration LSP
+lsp.setup()
